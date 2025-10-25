@@ -60,11 +60,15 @@ function App() {
           element: <ProtectedRoute element={<Questionnaire />} />,
         },
         {
+          path: "assignments/edit/:id",
+          element: <AssignmentEditor mode="update" />,
+          loader: loadAssignment,
+        },
+        {
           path: "assignments/edit/:id/createteams",
           element: <CreateTeams />,
           loader: loadAssignment,
         },
-
         {
           path: "assignments/edit/:id/assignreviewer",
           element: <AssignReviewer />,
@@ -97,11 +101,6 @@ function App() {
             {
               path: "new",
               element: <AssignmentEditor mode="create" />,
-              loader: loadAssignment,
-            },
-            {
-              path: "edit/:id",
-              element: <AssignmentEditor mode="update" />,
               loader: loadAssignment,
             },
           ],
@@ -192,11 +191,11 @@ function App() {
         },
         {
           path: "reviews",
-          element: <Reviews/>,
+          element: <Reviews />,
         },
         {
           path: "email_the_author",
-          element: <Email_the_author/>,
+          element: <Email_the_author />,
         },
         // Fixed the missing comma and added an opening curly brace
         {
