@@ -9,7 +9,7 @@ import { Button, Modal } from "react-bootstrap";
 import { Form, Formik, FormikHelpers } from "formik";
 import { IAssignmentFormValues, transformAssignmentRequest } from "./AssignmentUtil";
 import { IEditor } from "../../utils/interfaces";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLoaderData, useLocation, useNavigate } from "react-router-dom";
 import FormInput from "components/Form/FormInput";
@@ -24,6 +24,8 @@ import '../../custom.scss';
 import { faUsers } from '@fortawesome/free-solid-svg-icons';
 import { faClipboardList } from '@fortawesome/free-solid-svg-icons';
 import Table from "components/Table/Table";
+import FormDatePicker from "components/Form/FormDatePicker";
+import ToolTip from "components/ToolTip";
 
 const initialValues: IAssignmentFormValues = {
   name: "",
@@ -56,6 +58,17 @@ const initialValues: IAssignmentFormValues = {
   allow_self_reviews: false,
   reviews_visible_to_other_reviewers: false,
   number_of_review_rounds: 0,
+  use_signup_deadline: false,
+  use_drop_topic_deadline: false,
+  use_team_formation_deadline: false,
+  weights: [],
+  notification_limits: [],
+  use_date_updater: [],
+  submission_allowed: [],
+  review_allowed: [],
+  teammate_allowed: [],
+  metareview_allowed: [],
+  reminder: [],
   // Add other assignment-specific initial values
 };
 
@@ -66,6 +79,8 @@ const validationSchema = Yup.object({
 
 const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
   const { data: assignmentResponse, error: assignmentError, sendRequest } = useAPI();
+  const { data: coursesResponse, error: coursesError, sendRequest: sendCoursesRequest } = useAPI();
+  const [courses, setCourses] = useState<any[]>([]);
   const auth = useSelector(
     (state: RootState) => state.authentication,
     (prev, next) => prev.isAuthenticated === next.isAuthenticated
@@ -97,10 +112,39 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
     assignmentError && dispatch(alertActions.showAlert({ variant: "danger", message: assignmentError }));
   }, [assignmentError, dispatch]);
 
+  // Load courses on component mount
+  useEffect(() => {
+    sendCoursesRequest({
+      url: "/courses",
+      method: HttpMethod.GET,
+    });
+  }, []);
+
+  // Handle courses response
+  useEffect(() => {
+    if (coursesResponse && coursesResponse.status >= 200 && coursesResponse.status < 300) {
+      setCourses(coursesResponse.data || []);
+    }
+  }, [coursesResponse]);
+
+  // Show courses error message
+  useEffect(() => {
+    coursesError && dispatch(alertActions.showAlert({ variant: "danger", message: coursesError }));
+  }, [coursesError, dispatch]);
+
   const onSubmit = (
     values: IAssignmentFormValues,
     submitProps: FormikHelpers<IAssignmentFormValues>
   ) => {
+
+    // validate sum of weights = 100%
+    const totalWeight = values.weights?.reduce((acc: number, curr: number) => acc + curr, 0) || 0;
+    console.log(totalWeight);
+    if (totalWeight !== 100) {
+      dispatch(alertActions.showAlert({ variant: "danger", message: "Sum of weights must be 100%" }));
+      return;
+    }
+
     let method: HttpMethod = HttpMethod.POST;
     let url: string = "/assignments";
     if (mode === "update") {
@@ -109,7 +153,6 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
     }
     // to be used to display message when assignment is created
     assignmentData.name = values.name;
-    console.log(values);
     sendRequest({
       url: url,
       method: method,
@@ -122,7 +165,7 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
   const handleClose = () => navigate(location.state?.from ? location.state.from : "/assignments");
 
   return (
-    <div>
+    <div style={{ padding: '30px' }}>
       <h1>Editing Assignment: {assignmentData.name}</h1>
 
       <Formik
@@ -136,40 +179,55 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
           <Form>
             <Tabs defaultActiveKey="general" id="assignment-tabs">
               {/* General Tab */}
-              <Tab eventKey="general" title="General">
-                <FormInput controlId="assignment-name" label="Assignment Name" name="name" />
-                <FormSelect
-                  controlId="assignment-course_id"
-                  label="Course"
-                  name="course_id"
-                  options={[
-                    { label: "Course 1", value: 1 },
-                    { label: "Course 2", value: 2 },
-                    { label: "Course 3", value: 3 },
-                  ]}
-                />
-                <FormInput controlId="assignment-directory_path" label="Submission Directory" name="directory_path" />
-                <FormInput controlId="assignment-spec_location" label="Description URL" name="spec_location" />
+              <Tab eventKey="general" title="General" >
+                <div style={{ width: '40%', marginTop: '20px' }}>
+                  <div style={{ display: 'grid', alignItems: 'center', columnGap: '20px', gridTemplateColumns: 'max-content 1fr' }}>
+                    <label className="form-label">Assignment Name</label>
+                    <FormInput controlId="assignment-name" label="" name="name" />
+                    <label className="form-label">Course</label>
+                    {courses && (
+                      <FormSelect
+                        controlId="assignment-course_id"
+                        // label="Course"
+                        name="course_id"
+                        options={courses.map(course => ({
+                          label: course.name,
+                          value: course.id,
+                        }))}
+                      />
+                    )}
+                    <div style={{ display: 'flex', columnGap: '5px' }}>
+                      <label className="form-label">Submission Directory</label>
+                      <ToolTip id={`assignment-directory_path-tooltip`} info="Mandatory field. No space or special chars. Directory name will be autogenerated if not provided, in the form of assignment_[assignment_id]." />
+                    </div>
+                    <FormInput controlId="assignment-directory_path" name="directory_path" />
+                    <label className="form-label">Description URL</label>
+                    <FormInput controlId="assignment-spec_location" name="spec_location" />
+                  </div>
 
+                </div>
                 <FormCheckbox controlId="assignment-private" label="Private Assignment" name="private" />
 
                 <FormCheckbox controlId="assignment-has_teams" label="Has teams?" name="has_teams" />
                 {formik.values.has_teams && (
-                  <>
-                    <FormInput controlId="assignment-max_team_size" label="Max Team Size" name="max_team_size" type="number" />
+                  <div style={{ paddingLeft: 30 }}>
+                    <div style={{ display: 'flex', columnGap: '5px', alignItems: 'center' }}>
+                      <label className="form-label">Max Team Size</label>
+                      <div style={{ width: '100px' }}><FormInput controlId="assignment-max_team_size" name="max_team_size" type="number" /></div>
+                    </div>
                     <FormCheckbox controlId="assignment-show_teammate_review" label="Show teammate reviews?" name="show_teammate_review" />
                     <FormCheckbox controlId="assignment-is_pair_programming" label="Pair Programming?" name="is_pair_programming" />
-                  </>
+                  </div>
                 )}
 
                 <FormCheckbox controlId="assignment-has_mentors" label="Has mentors?" name="has_mentors" />
                 {formik.values.has_mentors && (
-                  <FormCheckbox controlId="assignment-auto_assign_mentors" label="Auto-assign mentors when team hits > 50% capacity?" name="auto_assign_mentors" />
+                  <div style={{ paddingLeft: 30 }}><FormCheckbox controlId="assignment-auto_assign_mentors" label="Auto-assign mentors when team hits > 50% capacity?" name="auto_assign_mentors" /></div>
                 )}
 
                 <FormCheckbox controlId="assignment-has_topics" label="Has topics?" name="has_topics" />
                 {formik.values.has_topics && (
-                  <FormCheckbox controlId="assignment-staggered_deadline_assignment" label="Staggered deadline assignment?" name="staggered_deadline_assignment" />
+                  <div style={{ paddingLeft: 30 }}><FormCheckbox controlId="assignment-staggered_deadline_assignment" label="Staggered deadline assignment?" name="staggered_deadline_assignment" /></div>
                 )}
 
                 <FormCheckbox controlId="assignment-has_quizzes" label="Has quizzes?" name="has_quizzes" />
@@ -180,7 +238,7 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
 
               {/* Topics Tab */}
               <Tab eventKey="topics" title="Topics">
-                <h2>Topics for {assignmentData.name}</h2>
+                <div style={{ fontSize: '1.5rem', color: '#333', marginTop: '20px', marginBottom: '20px' }}>Topics for {assignmentData.name}</div>
                 <FormCheckbox controlId="assignment-allow_topic_suggestions_from_students" label="Allow topic suggestions from students?" name="allow_topic_suggestion_from_students" />
                 <FormCheckbox controlId="assignment-enable_bidding_for_topics" label="Enable bidding for topics?" name="enable_bidding_for_topics" />
                 <FormCheckbox controlId="assignment-enable_bidding_for_reviews" label="Enable bidding for reviews?" name="enable_bidding_for_reviews" />
@@ -189,62 +247,133 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
                 <FormCheckbox controlId="assignment-allow_participants_to_create_bookmarks" label="Allow participants to create bookmarks?" name="allow_participants_to_create_bookmarks" />
 
                 {/* TODO: Add topics table here */}
-                <div className="d-flex justify-content-start gap-2">
-                  <a href="#">New topic</a> |
-                  <a href="#">Import topics</a> |
-                  <Button variant="primary">Delete selected topics</Button> |
-                  <Button variant="primary">Delete all topics</Button> |
-                  <a href="#">Back</a>
+
+                <div className="d-flex justify-content-start gap-2" style={{ alignItems: 'center', marginTop: '20px' }}>
+                  <a href="#" style={{ color: 'var(--bs-secondary)', textDecoration: 'none' }}>New topic</a> |
+                  <a href="#" style={{ color: 'var(--bs-secondary)', textDecoration: 'none' }}>Import topics</a> |
+                  <Button variant="outline-secondary">Delete selected topics</Button> |
+                  <Button variant="outline-secondary">Delete all topics</Button> |
+                  <a href="#" style={{ color: 'var(--bs-secondary)', textDecoration: 'none' }}>Back</a>
                 </div>
               </Tab>
 
               {/* Rubrics Tab */}
               <Tab eventKey="rubrics" title="Rubrics">
+                <div style={{ marginTop: '20px' }}></div>
                 <FormCheckbox controlId="assignment-review_rubric_varies_by_round" label="Review rubric varies by round?" name="review_rubric_varies_by_round" />
                 <FormCheckbox controlId="assignment-review_rubric_varies_by_topic" label="Review rubric varies by topic?" name="review_rubric_varies_by_topic" />
                 <FormCheckbox controlId="assignment-review_rubric_varies_by_role" label="Review rubric varies by role?" name="review_rubric_varies_by_role" />
 
-                <Table
-                  showColumnFilter={false}
-                  showGlobalFilter={false}
-                  showPagination={false}
-                  data={[
-                    {
-                      id: 1,
-                      title: "Review",
-                      questionnaire: <></>,
-                      weight: "100%",
-                      notification_limit: "1 hour before deadline",
-                    },
-                  ]}
-                  columns={[
-                    { accessorKey: "title", header: "", enableSorting: false, enableColumnFilter: false },
-                    { accessorKey: "questionnaire", header: "Questionnaire", enableSorting: false, enableColumnFilter: false },
-                    { accessorKey: "weight", header: "Weight", enableSorting: false, enableColumnFilter: false },
-                    { accessorKey: "notification_limit", header: "Notification Limit", enableSorting: false, enableColumnFilter: false },
-                  ]}
-                />
+                <div style={{ marginTop: '20px', display: 'ruby' }}>
+                  <Table
+                    showColumnFilter={false}
+                    showGlobalFilter={false}
+                    showPagination={false}
+                    data={[
+                      ...Array.from({ length: formik.values.number_of_review_rounds ?? 0 }, (_, i) => ([
+                        {
+                          id: i,
+                          title: `Review round ${i + 1}:`,
+                          questionnaire: ['Sample 1', 'Sample 2', 'Sample 3'],
+                          questionnaire_type: 'dropdown',
+                        },
+                        {
+                          id: i,
+                          title: `Add tag prompts`,
+                          questionnaire_type: 'tag_prompts',
+                        }
+                      ])).flat(),
+                      {
+                        id: formik.values.number_of_review_rounds ?? 0,
+                        title: "Author feedback:",
+                        questionnaire: ['Standard author feedback'],
+                        questionnaire_type: 'dropdown',
+                      },
+                      {
+                        id: formik.values.number_of_review_rounds ?? 0,
+                        title: "Add tag prompts",
+                        questionnaire_type: 'tag_prompts',
+                      },
+                      {
+                        id: (formik.values.number_of_review_rounds ?? 0) + 1,
+                        title: "Teammate review:",
+                        questionnaire: ['Review with Github metrics'],
+                        questionnaire_type: 'dropdown',
+                      },
+                      {
+                        id: (formik.values.number_of_review_rounds ?? 0) + 1,
+                        title: "Add tag prompts",
+                        questionnaire_type: 'tag_prompts',
+                      },
+                    ]}
+                    columns={[
+                      {
+                        cell: ({ row }) => <div style={{ marginRight: '10px' }}>{row.original.title}</div>,
+                        accessorKey: "title", header: "", enableSorting: false, enableColumnFilter: false
+                      },
+                      {
+                        cell: ({ row }) => <div style={{ marginRight: '10px' }}>{row.original.questionnaire_type === 'dropdown' &&
+                          <FormSelect controlId={`assignment-questionnaire_${row.original.id}`} name="questionnaire"
+                            options={row.original.questionnaire.map((questionnaire: string) => ({ label: questionnaire, value: questionnaire }))} />}
+                          {row.original.questionnaire_type === 'tag_prompts' &&
+                            <div style={{ marginBottom: '10px' }}><Button variant="outline-secondary">+Tag prompt+</Button>
+                              <Button variant="outline-secondary">-Tag prompt-</Button></div>}</div>,
+                        accessorKey: "questionnaire", header: "Questionnaire", enableSorting: false, enableColumnFilter: false
+                      },
+                      {
+                        cell: ({ row }) => <div style={{ marginRight: '10px' }}>{row.original.questionnaire_type === 'dropdown' &&
+                          <><div style={{ width: '70px', display: 'flex', alignItems: 'center' }}><FormInput controlId={`assignment-weight_${row.original.id}`} name={`weights[${row.original.id}]`} type="number" />%</div></>}</div>,
+                        accessorKey: `weights`, header: "Weight", enableSorting: false, enableColumnFilter: false
+                      },
+                      {
+                        cell: ({ row }) => <>{row.original.questionnaire_type === 'dropdown' &&
+                          <><div style={{ width: '70px', display: 'flex', alignItems: 'center' }}><FormInput controlId={`assignment-notification_limit_${row.original.id}`} name={`notification_limits[${row.original.id}]`} type="number" />%</div></>}</>,
+                        accessorKey: "notification_limits", header: "Notification Limit", enableSorting: false, enableColumnFilter: false
+                      },
+                    ]}
+                  />
+                </div>
               </Tab>
 
               {/* Review Strategy Tab */}
               <Tab eventKey="review_strategy" title="Review strategy">
-                <FormSelect
-                  controlId="assignment-review_strategy"
-                  label="Review strategy"
-                  name="review_strategy"
-                  options={[
-                    { label: "Review Strategy 1", value: 1 },
-                    { label: "Review Strategy 2", value: 2 },
-                    { label: "Review Strategy 3", value: 3 },
-                  ]}
-                />
+                <div style={{ marginTop: '20px' }}></div>
+                <div style={{ display: 'flex', alignItems: 'center', columnGap: '10px' }}>
+                  <label className="form-label">Review strategy:</label>
+                  <FormSelect
+                    controlId="assignment-review_strategy"
+                    name="review_strategy"
+                    options={[
+                      { label: "Review Strategy 1", value: 1 },
+                      { label: "Review Strategy 2", value: 2 },
+                      { label: "Review Strategy 3", value: 3 },
+                    ]}
+                  />
+                </div>
                 {formik.values.has_topics && (
-                  <FormInput controlId="assignment-review_topic_threshold" label="Review topic threshold (k)" name="review_topic_threshold" type="number" />
+                  <div style={{ display: 'flex', alignItems: 'center', columnGap: '10px' }}>
+                    <label className="form-label">Review topic threshold (k):</label>
+                    <div style={{ width: '70px', display: 'flex', alignItems: 'center' }}>
+                      <FormInput controlId="assignment-review_topic_threshold" name="review_topic_threshold" type="number" />
+                    </div>
+                  </div>
                 )}
-                <FormInput controlId="assignment-maximum_number_of_reviews_per_submission" label="Maximum number of reviews per submission" name="maximum_number_of_reviews_per_submission" type="number" />
-                <FormCheckbox controlId="assignment-has_max_review_limit" label="Has max review limit?" name="has_max_review_limit" />
-                <FormInput controlId="assignment-set_allowed_number_of_reviews_per_reviewer" label="Set allowed number of reviews per reviewer" name="set_allowed_number_of_reviews_per_reviewer" type="number" />
-                <FormInput controlId="assignment-set_required_number_of_reviews_per_reviewer" label="Set required number of reviews per reviewer" name="set_required_number_of_reviews_per_reviewer" type="number" />
+                <div style={{ display: 'grid', alignItems: 'center', columnGap: '10px', gridTemplateColumns: 'max-content 1fr' }}>
+                  <label className="form-label">Maximum number of reviews per submission:</label>
+                  <div style={{ width: '70px', display: 'flex', alignItems: 'center' }}>
+                    <FormInput controlId="assignment-maximum_number_of_reviews_per_submission" name="maximum_number_of_reviews_per_submission" type="number" />
+                  </div>
+                  <FormCheckbox controlId="assignment-has_max_review_limit" label="Has max review limit?" name="has_max_review_limit" />
+                  <div></div>
+                  <label className="form-label">Set allowed number of reviews per reviewer:</label>
+                  <div style={{ width: '70px', display: 'flex', alignItems: 'center' }}>
+                    <FormInput controlId="assignment-set_allowed_number_of_reviews_per_reviewer" name="set_allowed_number_of_reviews_per_reviewer" type="number" />
+                  </div>
+                  <label className="form-label">Set required number of reviews per reviewer:</label>
+                  <div style={{ width: '70px', display: 'flex', alignItems: 'center' }}>
+                    <FormInput controlId="assignment-set_required_number_of_reviews_per_reviewer" name="set_required_number_of_reviews_per_reviewer" type="number" />
+                  </div>
+                </div>
                 <FormCheckbox controlId="assignment-is_review_anonymous" label="Is review anonymous?" name="is_review_anonymous" />
                 <FormCheckbox controlId="assignment-is_review_done_by_teams" label="Is review done by teams?" name="is_review_done_by_teams" />
                 <FormCheckbox controlId="assignment-allow_self_reviews" label="Allow self-reviews?" name="allow_self_reviews" />
@@ -254,12 +383,134 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
 
               {/* Due dates Tab */}
               <Tab eventKey="due_dates" title="Due dates">
-                <FormInput controlId="assignment-number_of_review_rounds" label="Number of review rounds" name="number_of_review_rounds" type="number" />
-                <button type="button" className="btn btn-primary">Set</button>
+                <div style={{ marginTop: '20px' }}></div>
+                <div style={{ display: 'flex', alignItems: 'center', columnGap: '10px', marginBottom: '10px' }}>
+                  <label className="form-label">Number of review rounds:</label>
+                  <div style={{ width: '70px', display: 'flex', alignItems: 'center', marginBottom: '-0.3rem' }}>
+                    <FormInput controlId="assignment-number_of_review_rounds" name="number_of_review_rounds" type="number" />
+                  </div>
+                  <Button variant="outline-secondary">Set</Button>
+                </div>
 
                 <FormCheckbox controlId="assignment-use_signup_deadline" label="Use signup deadline" name="use_signup_deadline" />
                 <FormCheckbox controlId="assignment-use_drop_topic_deadline" label="Use drop-topic deadline" name="use_drop_topic_deadline" />
                 <FormCheckbox controlId="assignment-use_team_formation_deadline" label="Use team-formation deadline" name="use_team_formation_deadline" />
+
+                <Button variant="outline-secondary" style={{ marginTop: '10px', marginBottom: '10px' }}>Show/Hide date updater</Button>
+
+                <div>
+                  <div style={{ display: 'ruby', marginTop: '30px' }}>
+                    <Table
+                      showColumnFilter={false}
+                      showGlobalFilter={false}
+                      showPagination={false}
+                      data={[
+                        ...Array.from({ length: formik.values.number_of_review_rounds ?? 0 }, (_, i) => ([
+                          {
+                            id: 2 * i,
+                            deadline_type: `Review ${i + 1}: Submission`,
+                          },
+                          {
+                            id: 2 * i + 1,
+                            deadline_type: `Review ${i + 1}: Review`,
+                          },
+                        ])).flat(),
+                        ...(formik.values.use_signup_deadline ? [
+                          {
+                            id: 'signup_deadline',
+                            deadline_type: "Signup deadline",
+                          },
+                        ] : []),
+                        ...(formik.values.use_drop_topic_deadline ? [
+                          {
+                            id: 'drop_topic_deadline',
+                            deadline_type: "Drop topic deadline",
+                          },
+                        ] : []),
+                        ...(formik.values.use_team_formation_deadline ? [
+                          {
+                            id: 'team_formation_deadline',
+                            deadline_type: "Team formation deadline",
+                          },
+                        ] : []),
+                      ]}
+                      columns={[
+                        { accessorKey: "deadline_type", header: "Deadline type", enableSorting: false, enableColumnFilter: false },
+                        {
+                          cell: ({ row }) => <><FormDatePicker controlId={`assignment-date_time_${row.original.id}`} name={`date_time[${row.original.id}]`} /></>,
+                          accessorKey: "date_time", header: "Date & Time", enableSorting: false, enableColumnFilter: false
+                        },
+                        {
+                          cell: ({ row }) => <><FormCheckbox controlId={`assignment-use_date_updater_${row.original.id}`} name={`use_date_updater[${row.original.id}]`} /></>,
+                          accessorKey: `use_date_updater`, header: "Use date updater?", enableSorting: false, enableColumnFilter: false
+                        },
+                        {
+                          cell: ({ row }) => <>
+                            <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                              { label: "Yes", value: "yes" },
+                              { label: "No", value: "no" },
+                            ]} />
+                          </>,
+                          accessorKey: "submission_allowed", header: "Submission allowed?", enableSorting: false, enableColumnFilter: false
+                        },
+                        {
+                          cell: ({ row }) => <>
+                            <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                              { label: "Yes", value: "yes" },
+                              { label: "No", value: "no" },
+                            ]} />
+                          </>,
+                          accessorKey: "review_allowed", header: "Review allowed?", enableSorting: false, enableColumnFilter: false
+                        },
+                        {
+                          cell: ({ row }) => <>
+                            <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                              { label: "Yes", value: "yes" },
+                              { label: "No", value: "no" },
+                            ]} />
+                          </>,
+                          accessorKey: "teammate_allowed", header: "Teammate allowed?", enableSorting: false, enableColumnFilter: false
+                        },
+                        {
+                          cell: ({ row }) => <>
+                            <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                              { label: "Yes", value: "yes" },
+                              { label: "No", value: "no" },
+                            ]} />
+                          </>,
+                          accessorKey: "metareview_allowed", header: "Meta-review allowed?", enableSorting: false, enableColumnFilter: false
+                        },
+                        {
+                          cell: ({ row }) => <>
+                            <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                              { label: "1", value: "1" },
+                              { label: "2", value: "2" },
+                              { label: "3", value: "3" },
+                              { label: "4", value: "4" },
+                              { label: "5", value: "5" },
+                              { label: "6", value: "6" },
+                              { label: "7", value: "7" },
+                              { label: "8", value: "8" },
+                              { label: "9", value: "9" },
+                              { label: "10", value: "10" },
+                            ]} /></>,
+                          accessorKey: "reminder", header: "Reminder (hrs)", enableSorting: false, enableColumnFilter: false
+                        },
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', columnGap: '10px' }}>
+                  <FormCheckbox controlId={`assignment-apply_late_policy`} label="Apply late policy:" name={`apply_late_policy?`} />
+                  <div style={{ marginBottom: '-0.3rem' }}>
+                    <FormSelect controlId={`assignment-late_policy_date_time`} name={`late_policy_date_time`} options={[
+                      { label: "--None--", value: "none" },
+                    ]} />
+                  </div>
+                  <Button variant="outline-secondary">New late policy</Button>
+                </div>
+
 
               </Tab>
 
@@ -299,16 +550,16 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
             </Tabs>
 
             {/* Submit button */}
-            <div className="mt-3 d-flex justify-content-start gap-2">
-              <Button type="submit" variant="primary">
+            <div className="mt-3 d-flex justify-content-start gap-2" style={{ alignItems: 'center' }}>
+              <Button type="submit" variant="outline-secondary">
                 Save
-              </Button> | 
-              <a href="/assignments" className="">Back</a>
+              </Button> |
+              <a href="/assignments" style={{ color: 'var(--bs-secondary)', textDecoration: 'none' }}>Back</a>
             </div>
           </Form>
         )}
       </Formik>
-    </div>
+    </div >
 
   );
 

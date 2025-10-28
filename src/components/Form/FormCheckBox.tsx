@@ -34,6 +34,8 @@ const FormCheckbox: React.FC<IFormProps> = (props) => {
                 label={displayLabel}
                 isInvalid={form.touched[field.name] && form.errors[field.name]}
                 feedback={form.errors[field.name]}
+                // without this checked attribute, tick doesn't show up inside table
+                checked={field.value}
               />
               <Form.Control.Feedback type="invalid">
                 {form.errors[field.name]}

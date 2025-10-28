@@ -29,10 +29,12 @@ const Login: React.FC = () => {
   const location = useLocation();
 
   const onSubmit = (values: ILoginFormValues, submitProps: FormikHelpers<ILoginFormValues>) => {
+    console.log(values);
     axios
       .post("http://localhost:3002/login", values)
       .then((response) => {
         const payload = setAuthToken(response.data.token);
+        console.log(response.data);
 
         dispatch(
           authenticationActions.setAuthentication({

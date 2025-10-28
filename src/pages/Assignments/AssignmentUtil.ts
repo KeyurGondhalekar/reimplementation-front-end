@@ -36,6 +36,17 @@ export interface IAssignmentFormValues {
   late_policy_id?: number;
   is_penalty_calculated?: boolean;
   calculate_penalty?: boolean;
+  use_signup_deadline?: boolean;
+  use_drop_topic_deadline?: boolean;
+  use_team_formation_deadline?: boolean;
+  weights?: number[];
+  notification_limits?: number[];
+  use_date_updater?: boolean[];
+  submission_allowed?: boolean[];
+  review_allowed?: boolean[];
+  teammate_allowed?: boolean[];
+  metareview_allowed?: boolean[];
+  reminder?: number[];
 }
 
 
