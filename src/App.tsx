@@ -95,15 +95,20 @@ function App() {
           loader: loadAssignment,
         },
         {
+          path: "assignments/new",
+          element: <AssignmentEditor mode="create" />,
+          loader: loadAssignment,
+        },
+        {
           path: "assignments",
           element: <ProtectedRoute element={<Assignment />} leastPrivilegeRole={ROLE.TA} />,
-          children: [
-            {
-              path: "new",
-              element: <AssignmentEditor mode="create" />,
-              loader: loadAssignment,
-            },
-          ],
+          // children: [
+          //   {
+          //     path: "new",
+          //     element: <AssignmentEditor mode="create" />,
+          //     loader: loadAssignment,
+          //   },
+          // ],
         },
         {
           path: "users",
