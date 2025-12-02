@@ -2,6 +2,7 @@ import axiosClient from "../../utils/axios_client";
 
 export interface IAssignmentFormValues {
   id?: number;
+  instructor_id: number;
   name: string;
   directory_path: string;
   spec_location: string;

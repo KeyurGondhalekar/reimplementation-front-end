@@ -30,6 +30,8 @@ import ToolTip from "components/ToolTip";
 const initialValues: IAssignmentFormValues = {
   name: "",
   directory_path: "",
+  instructor_id: 1,
+  course_id: 1,
   // dir: "",
   spec_location: "",
   private: false,
@@ -217,11 +219,11 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
         {(formik) => {
           const handleSave = () => {
             // Validate sum of weights = 100%
-            // const totalWeight = formik.values.weights?.reduce((acc: number, curr: number) => acc + curr, 0) || 0;
-            // if (totalWeight !== 100) {
-            //   dispatch(alertActions.showAlert({ variant: "danger", message: "Sum of weights must be 100%" }));
-            //   return;
-            // }
+            const totalWeight = formik.values.weights?.reduce((acc: number, curr: number) => acc + curr, 0) || 0;
+            if (totalWeight !== 100) {
+              dispatch(alertActions.showAlert({ variant: "danger", message: "Sum of weights must be 100%" }));
+              return;
+            }
 
             let method: HttpMethod = HttpMethod.POST;
             let url: string = "/assignments";
@@ -479,112 +481,119 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
 
                   <Button variant="outline-secondary" style={{ marginTop: '10px', marginBottom: '10px' }}>Show/Hide date updater</Button>
 
-                  <div>
-                    <div style={{ display: 'ruby', marginTop: '30px' }}>
-                      <Table
-                        showColumnFilter={false}
-                        showGlobalFilter={false}
-                        showPagination={false}
-                        data={[
-                          ...(formik.values.use_signup_deadline ? [
-                            {
-                              id: 'signup_deadline',
-                              deadline_type: "Signup deadline",
-                            },
-                          ] : []),
-                          ...(formik.values.use_drop_topic_deadline ? [
-                            {
-                              id: 'drop_topic_deadline',
-                              deadline_type: "Drop topic deadline",
-                            },
-                          ] : []),
-                          ...(formik.values.use_team_formation_deadline ? [
-                            {
-                              id: 'team_formation_deadline',
-                              deadline_type: "Team formation deadline",
-                            },
-                          ] : []),
-                          ...Array.from({ length: formik.values.number_of_review_rounds ?? 0 }, (_, i) => ([
-                            {
-                              id: 2 * i,
-                              deadline_type: `Round ${i + 1}: Submission`,
-                            },
-                            {
-                              id: 2 * i + 1,
-                              deadline_type: `Round ${i + 1}: Review`,
-                            },
-                          ])).flat(),
-                        ]}
-                        columns={[
-                          { accessorKey: "deadline_type", header: "Deadline type", enableSorting: false, enableColumnFilter: false },
-                          {
-                            cell: ({ row }) => <><FormDatePicker controlId={`assignment-date_time_${row.original.id}`} name={`date_time[${row.original.id}]`} /></>,
-                            accessorKey: "date_time", header: "Date & Time", enableSorting: false, enableColumnFilter: false
-                          },
-                          {
-                            cell: ({ row }) => <><FormCheckbox controlId={`assignment-use_date_updater_${row.original.id}`} name={`use_date_updater[${row.original.id}]`} /></>,
-                            accessorKey: `use_date_updater`, header: () => (
-                              <div style={{ display: 'flex', alignItems: 'flex-start', columnGap: '5px' }}>Use date updater?<ToolTip id="use-date-updater-info" info="Use date updater to be used for this assignment." /></div>
-                            ), enableSorting: false, enableColumnFilter: false
-                          },
-                          {
-                            cell: ({ row }) => <>
-                              <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
-                                { label: "Yes", value: "yes" },
-                                { label: "No", value: "no" },
-                              ]} />
-                            </>,
-                            accessorKey: "submission_allowed", header: "Submission allowed?", enableSorting: false, enableColumnFilter: false
-                          },
-                          {
-                            cell: ({ row }) => <>
-                              <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
-                                { label: "Yes", value: "yes" },
-                                { label: "No", value: "no" },
-                              ]} />
-                            </>,
-                            accessorKey: "review_allowed", header: "Review allowed?", enableSorting: false, enableColumnFilter: false
-                          },
-                          {
-                            cell: ({ row }) => <>
-                              <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
-                                { label: "Yes", value: "yes" },
-                                { label: "No", value: "no" },
-                              ]} />
-                            </>,
-                            accessorKey: "teammate_allowed", header: "Teammate review allowed?", enableSorting: false, enableColumnFilter: false
-                          },
-                          // {
-                          //   cell: ({ row }) => <>
-                          //     <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
-                          //       { label: "Yes", value: "yes" },
-                          //       { label: "No", value: "no" },
-                          //     ]} />
-                          //   </>,
-                          //   accessorKey: "metareview_allowed", header: "Meta-review allowed?", enableSorting: false, enableColumnFilter: false
-                          // },
-                          {
-                            cell: ({ row }) => <>
-                              <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
-                                { label: "1", value: "1" },
-                                { label: "2", value: "2" },
-                                { label: "3", value: "3" },
-                                { label: "4", value: "4" },
-                                { label: "5", value: "5" },
-                                { label: "6", value: "6" },
-                                { label: "7", value: "7" },
-                                { label: "8", value: "8" },
-                                { label: "9", value: "9" },
-                                { label: "10", value: "10" },
-                              ]} /></>,
-                            accessorKey: "reminder", header: () => (
-                              <div style={{ display: 'flex', alignItems: 'flex-start', columnGap: '5px' }}>Reminder (hrs):<ToolTip id="reminder-info" info="Each participant will be emailed a reminder this number of hours before the deadline." /></div>
-                            ), enableSorting: false, enableColumnFilter: false
-                          },
-                        ]}
-                      />
-                    </div>
-                  </div>
+                  {((formik.values.number_of_review_rounds && formik.values.number_of_review_rounds > 0) ||
+                    formik.values.use_signup_deadline ||
+                    formik.values.use_drop_topic_deadline ||
+                    formik.values.use_team_formation_deadline) && (
+                      <>
+                        <div>
+                          <div style={{ display: 'ruby', marginTop: '30px' }}>
+                            <Table
+                              showColumnFilter={false}
+                              showGlobalFilter={false}
+                              showPagination={false}
+                              data={[
+                                ...(formik.values.use_signup_deadline ? [
+                                  {
+                                    id: 'signup_deadline',
+                                    deadline_type: "Signup deadline",
+                                  },
+                                ] : []),
+                                ...(formik.values.use_drop_topic_deadline ? [
+                                  {
+                                    id: 'drop_topic_deadline',
+                                    deadline_type: "Drop topic deadline",
+                                  },
+                                ] : []),
+                                ...(formik.values.use_team_formation_deadline ? [
+                                  {
+                                    id: 'team_formation_deadline',
+                                    deadline_type: "Team formation deadline",
+                                  },
+                                ] : []),
+                                ...Array.from({ length: formik.values.number_of_review_rounds ?? 0 }, (_, i) => ([
+                                  {
+                                    id: 2 * i,
+                                    deadline_type: `Round ${i + 1}: Submission`,
+                                  },
+                                  {
+                                    id: 2 * i + 1,
+                                    deadline_type: `Round ${i + 1}: Review`,
+                                  },
+                                ])).flat(),
+                              ]}
+                              columns={[
+                                { accessorKey: "deadline_type", header: "Deadline type", enableSorting: false, enableColumnFilter: false },
+                                {
+                                  cell: ({ row }) => <><FormDatePicker controlId={`assignment-date_time_${row.original.id}`} name={`date_time[${row.original.id}]`} /></>,
+                                  accessorKey: "date_time", header: "Date & Time", enableSorting: false, enableColumnFilter: false
+                                },
+                                {
+                                  cell: ({ row }) => <><FormCheckbox controlId={`assignment-use_date_updater_${row.original.id}`} name={`use_date_updater[${row.original.id}]`} /></>,
+                                  accessorKey: `use_date_updater`, header: () => (
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', columnGap: '5px' }}>Use date updater?<ToolTip id="use-date-updater-info" info="Use date updater to be used for this assignment." /></div>
+                                  ), enableSorting: false, enableColumnFilter: false
+                                },
+                                {
+                                  cell: ({ row }) => <>
+                                    <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                                      { label: "Yes", value: "yes" },
+                                      { label: "No", value: "no" },
+                                    ]} />
+                                  </>,
+                                  accessorKey: "submission_allowed", header: "Submission allowed?", enableSorting: false, enableColumnFilter: false
+                                },
+                                {
+                                  cell: ({ row }) => <>
+                                    <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                                      { label: "Yes", value: "yes" },
+                                      { label: "No", value: "no" },
+                                    ]} />
+                                  </>,
+                                  accessorKey: "review_allowed", header: "Review allowed?", enableSorting: false, enableColumnFilter: false
+                                },
+                                {
+                                  cell: ({ row }) => <>
+                                    <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                                      { label: "Yes", value: "yes" },
+                                      { label: "No", value: "no" },
+                                    ]} />
+                                  </>,
+                                  accessorKey: "teammate_allowed", header: "Teammate review allowed?", enableSorting: false, enableColumnFilter: false
+                                },
+                                // {
+                                //   cell: ({ row }) => <>
+                                //     <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                                //       { label: "Yes", value: "yes" },
+                                //       { label: "No", value: "no" },
+                                //     ]} />
+                                //   </>,
+                                //   accessorKey: "metareview_allowed", header: "Meta-review allowed?", enableSorting: false, enableColumnFilter: false
+                                // },
+                                {
+                                  cell: ({ row }) => <>
+                                    <FormSelect controlId={`assignment-submission_allowed_${row.original.id}`} name={`submission_allowed[${row.original.id}]`} options={[
+                                      { label: "1", value: "1" },
+                                      { label: "2", value: "2" },
+                                      { label: "3", value: "3" },
+                                      { label: "4", value: "4" },
+                                      { label: "5", value: "5" },
+                                      { label: "6", value: "6" },
+                                      { label: "7", value: "7" },
+                                      { label: "8", value: "8" },
+                                      { label: "9", value: "9" },
+                                      { label: "10", value: "10" },
+                                    ]} /></>,
+                                  accessorKey: "reminder", header: () => (
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', columnGap: '5px' }}>Reminder (hrs):<ToolTip id="reminder-info" info="Each participant will be emailed a reminder this number of hours before the deadline." /></div>
+                                  ), enableSorting: false, enableColumnFilter: false
+                                },
+                              ]}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                   <div style={{ display: 'flex', alignItems: 'center', columnGap: '10px' }}>
                     <FormCheckbox controlId={`assignment-apply_late_policy`} label="Apply late policy:" name="apply_late_policy" />
@@ -598,7 +607,6 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
 
 
                 </Tab>
-
 
                 {/* Calibration Tab */}
                 <Tab eventKey="calibration" title="Calibration">
@@ -624,12 +632,12 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
                           {
                             cell: ({ row }) => {
                               if (row.original.review_status === "not_started") {
-                                return <a href={`/assignments/edit/${assignmentData.id}/calibration/${row.original.id}`}>Begin</a>;
+                                return <a style={{ color: '#986633', textDecoration: 'none' }} href={`/assignments/edit/${assignmentData.id}/calibration/${row.original.id}`}>Begin</a>;
                               } else {
                                 return <div style={{ display: 'flex', alignItems: 'center', columnGap: '5px' }}>
-                                  <a href={`/assignments/edit/${assignmentData.id}/calibration/${row.original.id}`}>View</a>
+                                  <a style={{ color: '#986633', textDecoration: 'none' }} href={`/assignments/edit/${assignmentData.id}/calibration/${row.original.id}`}>View</a>
                                   |
-                                  <a href={`/assignments/edit/${assignmentData.id}/calibration/${row.original.id}`}>Edit</a>
+                                  <a style={{ color: '#986633', textDecoration: 'none' }} href={`/assignments/edit/${assignmentData.id}/calibration/${row.original.id}`}>Edit</a>
                                 </div>;
                               }
                             },
@@ -638,17 +646,21 @@ const AssignmentEditor = ({ mode }: { mode: "create" | "update" }) => {
                           {
                             cell: ({ row }) => <>
                               <div>Hyperlinks:</div>
-                              {
-                                row.original.submitted_content.hyperlinks.map((item: any, index: number) => {
-                                  return <a key={index} href={item}>{item}</a>;
-                                })
-                              }
-                              <div style={{ marginTop: '10px' }}>Files:</div>
-                              {
-                                row.original.submitted_content.files.map((item: any, index: number) => {
-                                  return <a key={index} href={item}>{item}</a>;
-                                })
-                              }
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                {
+                                  row.original.submitted_content.hyperlinks.map((item: any, index: number) => {
+                                    return <a style={{ color: '#986633', textDecoration: 'none' }} key={index} href={item}>{item}</a>;
+                                  })
+                                }
+                              </div>
+                              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column' }}>Files:</div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                {
+                                  row.original.submitted_content.files.map((item: any, index: number) => {
+                                    return <a style={{ color: '#986633', textDecoration: 'none' }} key={index} href={item}>{item}</a>;
+                                  })
+                                }
+                              </div>
                             </>,
                             accessorKey: "submitted_content", header: "Submitted items(s)", enableSorting: false, enableColumnFilter: false
                           },
